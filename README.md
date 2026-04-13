@@ -265,6 +265,8 @@ The model achieved a validation accuracy of **89.5%**. Below are the detailed pr
   
  <img width="1903" height="890" alt="Screenshot 2026-04-13 004324" src="https://github.com/user-attachments/assets/692928fe-d5cf-471d-94f1-822e8d636c64" />
 
+<img width="1893" height="895" alt="Screenshot 2026-04-13 004530" src="https://github.com/user-attachments/assets/21c6eb57-b6c6-4626-8e4e-8017256ae804" />
+
 * Image Prediction: Accurate classification of static images.
   
  <img width="1911" height="857" alt="Screenshot 2026-04-13 004359" src="https://github.com/user-attachments/assets/f5f5e0a1-d380-4fce-ae3d-6ac9e92b8223" />
