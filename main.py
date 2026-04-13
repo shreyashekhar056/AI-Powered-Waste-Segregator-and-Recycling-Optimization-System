@@ -5,33 +5,6 @@ from torchvision import transforms, datasets, models
 from torch.utils.data import DataLoader
 import os
 
-class CNN(nn.Module):
-    def __init__(self, num_classes):
-        super().__init__()
-        self.features = nn.Sequential(
-            nn.Conv2d(3, 16, 3, padding=1),nn.BatchNorm2d(16), nn.ReLU(), nn.MaxPool2d(2,2),
-            nn.Conv2d(16, 32, 3, padding=1),nn.BatchNorm2d(32), nn.ReLU(), nn.MaxPool2d(2,2),
-            nn.Conv2d(32, 64, 3, padding=1),nn.BatchNorm2d(64), nn.ReLU(), nn.MaxPool2d(2,2),
-            nn.Conv2d(64, 128, 3, padding=1),nn.BatchNorm2d(128), nn.ReLU(), nn.MaxPool2d(2,2),
-            nn.Conv2d(128, 256, 3, padding=1),nn.BatchNorm2d(256), nn.ReLU(), nn.MaxPool2d(2,2),
-            nn.Conv2d(256, 512, 3, padding=1),nn.BatchNorm2d(512), nn.ReLU(), nn.MaxPool2d(2,2),
-        )
-        # Calculate the output size after all pools for your image size (e.g., 224x224)
-        # For 224x224 and 6 MaxPool2d(2,2): 224 -> 112 -> 56 -> 28 -> 14 -> 7 -> 3 (rounded down)
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(512 * 3 * 3, 512),  # If input is 224x224
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(512, num_classes)
-        )
-
-    def forward(self, x):
-        x = self.features(x)
-        x = self.classifier(x)
-        return x
-
-
 class Dataset:
     def __init__(self, train_dir, val_dir, batch_size):
         self.train_dir = train_dir
@@ -40,12 +13,10 @@ class Dataset:
 
         self.train_transform = transforms.Compose([
             transforms.Resize((256, 256)),
-            transforms.RandomCrop(224),
+            transforms.RandomResizedCrop(224, scale=(0.6, 1.0)), 
             transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomVerticalFlip(p=0.3),
-            transforms.RandomRotation(degrees=45),
-            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
-            transforms.RandomAffine(degrees=20, translate=(0.1, 0.1), scale=(0.8, 1.2)),
+            transforms.RandomRotation(degrees=20),
+            transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
@@ -59,20 +30,21 @@ class Dataset:
     def get_loaders(self):
         train_dataset = datasets.ImageFolder(self.train_dir, transform=self.train_transform)
         val_dataset = datasets.ImageFolder(self.val_dir, transform=self.val_transform)
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=os.cpu_count(), pin_memory=True)
-        val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=os.cpu_count(), pin_memory=True)
+        
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=2, pin_memory=True)
+        val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=2, pin_memory=True)
         return train_loader, val_loader, train_dataset.classes
-
-# 3️⃣ Trainer Class
-
 
 class Trainer:
     def __init__(self, model, device, lr, patience):
         self.model = model
         self.device = device
         self.patience = patience
-        self.criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
-        self.optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+        self.criterion = nn.CrossEntropyLoss()
+        
+        # IMPROVED: Lowered weight_decay from 1e-3 to 5e-4 to allow faster initial learning
+        self.optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        
         self.scheduler = None
         self.best_accuracy = 0.0
         self.early_stopping_counter = 0
@@ -83,7 +55,7 @@ class Trainer:
             max_lr=self.optimizer.param_groups[0]['lr'],
             epochs=num_epochs,
             steps_per_epoch=len(train_loader),
-            pct_start=0.3,
+            pct_start=0.2, # Start annealing earlier to stabilize learning
             anneal_strategy='cos'
         )
 
@@ -96,17 +68,17 @@ class Trainer:
             outputs = self.model(data)
             loss = self.criterion(outputs, targets)
             loss.backward()
-            nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
             self.optimizer.step()
+            
             if self.scheduler is not None:
                 self.scheduler.step()
+                
             total_loss += loss.item()
             _, predicted = outputs.max(1)
             total_correct += predicted.eq(targets).sum().item()
             total_samples += targets.size(0)
-        avg_loss = total_loss / len(train_loader)
-        accuracy = 100. * total_correct / total_samples
-        return avg_loss, accuracy
+            
+        return total_loss / len(train_loader), 100. * total_correct / total_samples
 
     def train(self, train_loader, val_loader, num_epochs, validator, saver, class_names):
         self.set_scheduler(train_loader, num_epochs)
@@ -114,29 +86,23 @@ class Trainer:
             print(f"\nEpoch [{epoch+1}/{num_epochs}]")
             train_loss, train_acc = self.train_one_epoch(train_loader)
             print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
+            
             val_loss, val_acc = validator.validate(val_loader, self.model, self.device, self.criterion)
             print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
 
-            # Save best model
             if val_acc > self.best_accuracy:
                 self.best_accuracy = val_acc
                 saver.save(self.model, self.optimizer, epoch, self.best_accuracy, class_names)
-                print(f"New best model saved with accuracy: {self.best_accuracy:.2f}%")
+                print(f"*** Best model updated: {self.best_accuracy:.2f}% ***")
                 self.early_stopping_counter = 0
             else:
                 self.early_stopping_counter += 1
 
             if self.early_stopping_counter >= self.patience:
-                print(f"Early stopping triggered. Best accuracy: {self.best_accuracy:.2f}%")
+                print(f"Stopped early. Best Val Acc: {self.best_accuracy:.2f}%")
                 break
 
-        print(f"Training completed. Best validation accuracy: {self.best_accuracy:.2f}%")
-
-
 class Validation:
-    def __init__(self):
-        pass
-
     def validate(self, val_loader, model, device, criterion):
         model.eval()
         total_loss, total_correct, total_samples = 0, 0, 0
@@ -149,10 +115,7 @@ class Validation:
                 _, predicted = outputs.max(1)
                 total_correct += predicted.eq(targets).sum().item()
                 total_samples += targets.size(0)
-        avg_loss = total_loss / len(val_loader)
-        accuracy = 100. * total_correct / total_samples
-        return avg_loss, accuracy
-
+        return total_loss / len(val_loader), 100. * total_correct / total_samples
 
 class ModelSaver:
     @staticmethod
@@ -166,34 +129,28 @@ class ModelSaver:
             'class_names': class_names
         }, save_path)
 
-
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    num_classes = 10
-    batch_size = 8
-    learning_rate = 5e-4
-    num_epoch = 50
-    patience = 10
-    train_dir = "dataset/train"
-    val_dir =  "dataset/val"
-
     print("Device being used:", device)
 
-    # Dataset and loaders
-    data_loader = Dataset(train_dir, val_dir, batch_size)
+    data_loader = Dataset("dataset/train", "dataset/val", batch_size=32)
     train_loader, val_loader, class_names = data_loader.get_loaders()
+    num_classes = len(class_names)
+    print(f"Detected Classes: {class_names}")
 
-    # Model
-    model = CNN(num_classes=num_classes)
+    print("Initializing ResNet18...")
+    model = models.resnet18(weights='DEFAULT')
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, num_classes)
     model = model.to(device)
 
-    # Validators and savers
-    validator = Validation()
-    saver = ModelSaver()
-
-    # Trainer
-    trainer = Trainer(model, device, learning_rate, patience)
-    trainer.train(train_loader, val_loader, num_epoch, validator, saver, class_names)
+    # IMPROVED: Increased LR to 1e-4 and Patience to 12
+    learning_rate = 1e-4  
+    num_epoch = 50
+    patience = 12 
+    
+    trainer = Trainer(model, device, lr=learning_rate, patience=patience)
+    trainer.train(train_loader, val_loader, num_epoch, Validation(), ModelSaver(), class_names)
 
 if __name__ == "__main__":
     main()
