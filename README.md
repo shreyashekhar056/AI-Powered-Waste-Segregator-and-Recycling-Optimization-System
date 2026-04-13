@@ -1,7 +1,5 @@
-# CNN Waste Classification with OpenCV and PyTorch
-
-I am happy to announce that I have trained my own CNN for 50 epochs as a part of my learning journey. I used a Kaggle waste classification dataset (with modifications for 10 classes).  
-This project represents a significant milestone in my learning journey with deep learning, where I developed a Convolutional Neural Network (CNN) to classify waste into 10 categories using OpenCV for image processing and PyTorch for model training and inference. Trained for 50 epochs on a modified Kaggle dataset, the model achieves a validation accuracy of 89.5%. This work explores the application of deep learning to real-world waste management, with innovations like real-time webcam predictions and detailed performance visualizations.
+# AI-Powered Waste Segregator & Recycling System 
+An automated waste classification system built with Deep Learning (PyTorch) and ResNet-18. This project is designed to accurately categorize waste into 6 distinct classes, enabling smarter recycling and waste management.
 
 **The model predicts the type of waste from an image and can be used for smart recycling or educational applications.**
 
@@ -10,13 +8,19 @@ This project represents a significant milestone in my learning journey with deep
 
 ## Highlights
 
-* **Customized Dataset:** Adapted the Kaggle Garbage Classification dataset to 10 specific waste categories, optimizing for balanced and practical classification.
-* **Real-Time Prediction:** Leveraged OpenCV for seamless webcam and image-based predictions, enabling potential integration into automated waste sorting systems.
-* **Robust CNN Architecture:** Designed a deep CNN with six convolutional layers, batch normalization, and dropout to ensure robust performance and prevent overfitting.
-* **Comprehensive Evaluation:** Implemented a validation pipeline with a confusion matrix and accuracy graphs, providing clear insights into model performance.
-* **Learning Journey:** This project combines knowledge from IBM’s Deep Learning with PyTorch course with hands-on implementation, reflecting my growth in understanding deep learning concepts.
+** Optimized Dataset: Focused on 6 high-impact waste categories, ensuring high precision and practical applicability.
+
+**High Performance: Achieved a peak 100% Validation Accuracy using transfer learning and customized training schedulers.
+
+**Integrated Visualization: Built-in plot_metrics functionality within the training pipeline to generate accuracy and loss graphs automatically.
+
+**Transfer Learning Power: Leverages the ResNet-18 architecture, fine-tuned specifically for waste material recognition.
+
+**Git LFS Integration: Large model weights (.pth files) are managed via Git Large File Storage for seamless repository management.
 
 ---
+
+## Table of Contents
 
 ## Table of Contents
 
@@ -25,49 +29,28 @@ This project represents a significant milestone in my learning journey with deep
 * [Dataset](#dataset)
 * [Model Architecture](#model-architecture)
 * [Training](#training)
-* [Evaluation](#evaluation)
 * [Usage Example](#usage-example)
 * [Results](#results)
-* [References](#references)
-* [Author](#author)
 
 ---
 
 ## Project Structure
 
 ```
-cnn-waste-classification-opencv-pytorch/
-├── dataset/
-│   ├── train/
-│   │   ├── battery/
-│   │   ├── cardboard/
-│   │   ├── clothes/
-│   │   ├── food_waste/
-│   │   ├── glass/
-│   │   ├── metal/
-│   │   ├── paper/
-│   │   ├── plastic/
-│   │   ├── shoes/
-│   │   ├── trash/
-│   ├── val/
-│   │   ├── battery/
-│   │   ├── cardboard/
-│   │   ├── clothes/
-│   │   ├── food_waste/
-│   │   ├── glass/
-│   │   ├── metal/
-│   │   ├── paper/
-│   │   ├── plastic/
-│   │   ├── shoes/
-│   │   ├── trash/
-├── saved_models/
-│   └── best_model.pth
-├── license
-├── main.py
-├── object-detection.py
-├── validation-checker.py
-├── validation-splitter.py
-├── requirements.txt
+## Project Structure
+
+```text
+AI-Powered-Waste-Segregator/
+├── dataset/             # Organized into train/val splits
+│   ├── train/           # Cardboard, Glass, Metal, Paper, Plastic, Trash
+│   └── val/             # Validation images per category
+├── saved_models/        # Storage for the best-performing model weights
+│   └── best_model.pth   (Managed via Git LFS)
+├── Waste_Training.ipynb # Primary notebook with auto-graphing logic
+├── app.py               # Streamlit web interface for deployment
+├── main.py               # Core training script
+├── predict_image.py     # Inference script for single image testing
+└── requirements.txt     # List of dependencies (PyTorch, Torchvision, etc.)
 ```
 
 * `main.py`: Trains the CNN model for 50 epochs and saves the best model to `saved_models/best_model.pth`.
@@ -83,25 +66,22 @@ cnn-waste-classification-opencv-pytorch/
 Follow these steps to set up and run the project:
 
 ```bash
-git clone https://github.com/gokulseetharaman/cnn-waste-classification-opencv-pytorch.git
-cd cnn-waste-classification-opencv-pytorch
+# Clone the repository
+git clone https://github.com/shreyashekhar056/AI-Powered-Waste-Segregator-and-Recycling-Optimization-System.git
+cd AI-Powered-Waste-Segregator-and-Recycling-Optimization-System
 
-# Create and activate a virtual environment:
+# Create and activate a virtual environment
 python -m venv venv
-venv\Scripts\activate
-# On Linux: source venv/bin/activate
+.\venv\Scripts\activate
 
-# Install dependencies:
+# Install dependencies
 pip install -r requirements.txt
 
-# Train the model:
-python3 main.py
+# Run the Training Notebook or Script
+python main.py
 
-# Perform predictions:
-python3 object-detection.py
-
-# Evaluate the model:
-python3 validation-checker.py
+# Launch the Prediction Web App
+streamlit run app.py
 ```
 
 ---
@@ -114,13 +94,10 @@ Source : [Kaggle dataset](https://www.kaggle.com/datasets/mostafaabla/garbage-cl
 
 * Battery
 * Cardboard
-* Clothes
-* Food Waste
 * Glass
 * Metal
 * Paper
 * Plastic
-* Shoes
 * Trash
 
 The dataset is split into:
@@ -139,40 +116,21 @@ The CNN is designed for efficiency and accuracy, with six convolutional layers f
 ```python
 import torch
 import torch.nn as nn
+from torchvision import models
 
-class CNN(nn.Module):
-    def __init__(self, num_classes):
-        super().__init__()
-        self.features = nn.Sequential(
-            nn.Conv2d(3, 16, 3, padding=1), nn.BatchNorm2d(16), nn.ReLU(), nn.MaxPool2d(2,2),
-            nn.Conv2d(16, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(), nn.MaxPool2d(2,2),
-            nn.Conv2d(32, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(), nn.MaxPool2d(2,2),
-            nn.Conv2d(64, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(), nn.MaxPool2d(2,2),
-            nn.Conv2d(128, 256, 3, padding=1), nn.BatchNorm2d(256), nn.ReLU(), nn.MaxPool2d(2,2),
-            nn.Conv2d(256, 512, 3, padding=1), nn.BatchNorm2d(512), nn.ReLU(), nn.MaxPool2d(2,2),
-        )
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(512 * 3 * 3, 512),  # For 224x224 input
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(512, num_classes)
-        )
+# Load the pretrained ResNet18 backbone
+model = models.resnet18(weights='DEFAULT')
 
-    def forward(self, x):
-        x = self.features(x)
-        x = self.classifier(x)
-        return x
+# Fine-tuning: Replace the final fully connected layer
+# num_ftrs matches the 512 output neurons of the ResNet backbone
+num_ftrs = model.fc.in_features
+model.fc = nn.Linear(num_ftrs, num_classes) # num_classes = 6
 ```
 
 **Summary Table:**
 
-| Layer Type         | Count | Details                            |
-| ------------------ | ----- | ---------------------------------- |
-| Input “Layer”      | 1     | Conv2d(3, 16, kernel\_size=3, ...) |
-| Conv Hidden Layers | 6     | Conv2d-BatchNorm2d-ReLU-MaxPool2d  |
-| FC Hidden Layer    | 1     | Linear(512*3*3, 512)               |
-| Output Layer       | 1     | Linear(512, num\_classes)          |
+<img width="903" height="389" alt="image" src="https://github.com/user-attachments/assets/b81fb713-4bd3-4147-bbe7-cdb059661bd4" />
+
 
 **Neuron Count**
 
@@ -241,17 +199,21 @@ def predict_frame(self, frame):
         import numpy as np
         import torch
         
+        # 1. Preprocessing: Convert BGR to RGB and resize to 224x224
         img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = cv2.resize(img, (224, 224))
-        cv2.imshow("prediction", img)
         
-        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)  # Ensure float32
-        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)   # Ensure float32
+        # 2. Normalization: Apply ImageNet mean and std
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
         img = img.astype(np.float32) / 255.0
         img = (img - mean) / std
-        img = np.transpose(img, (2, 0, 1))  # HWC to CHW
-        img_tensor = torch.from_numpy(img).unsqueeze(0).float().to(self.device)  # Ensure float32
         
+        # 3. Tensor Conversion: HWC to CHW and add batch dimension
+        img = np.transpose(img, (2, 0, 1))
+        img_tensor = torch.from_numpy(img).unsqueeze(0).float().to(self.device)
+        
+        # 4. Inference
         with torch.no_grad():
             output = self.model(img_tensor)
             probabilities = torch.nn.functional.softmax(output, dim=1)
@@ -293,20 +255,20 @@ Outputs:
 
 The model achieved a validation accuracy of **89.5%**. Below are the detailed precision, recall, F1-score, and support for each class as calculated on the validation set:
 
-<img width="527" alt="image" src="https://github.com/user-attachments/assets/7e146583-880b-4fda-ab44-688ff2a137f2" />
-
-
 **Visualizations:**
 
 * Confusion Matrix: Shows classification performance across the 10 classes.
   
-    ![confusion matrix](https://github.com/user-attachments/assets/733887d2-2385-41c3-9415-cae06602f19d)
+<img width="792" height="706" alt="image" src="https://github.com/user-attachments/assets/ff062656-b8a3-47a2-a59d-9f7e792d3762" />
+  
 * Webcam Prediction: Real-time classification from webcam feed.
   
-  <img width="949" alt="Screenshot 2025-05-26 201547" src="https://github.com/user-attachments/assets/edf863a2-f185-439c-ada8-eb8915c78142" />
+ <img width="1903" height="890" alt="Screenshot 2026-04-13 004324" src="https://github.com/user-attachments/assets/692928fe-d5cf-471d-94f1-822e8d636c64" />
+
 * Image Prediction: Accurate classification of static images.
   
-  <img width="164" alt="image" src="https://github.com/user-attachments/assets/6f7bd08c-b139-412c-b1e2-890eb618e075" />
+ <img width="1911" height="857" alt="Screenshot 2026-04-13 004359" src="https://github.com/user-attachments/assets/f5f5e0a1-d380-4fce-ae3d-6ac9e92b8223" />
+
 
 
 ---
